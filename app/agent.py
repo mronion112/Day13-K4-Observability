@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from . import metrics
 from .mock_llm import FakeLLM
+from structlog.contextvars import get_contextvars
+
 from .mock_rag import retrieve
 from .pii import hash_user_id, summarize_text
 from .prompt_management import resolve_prompt
@@ -48,6 +50,7 @@ class LabAgent:
             session_id=session_id,
             tags=["lab", feature, self.model],
             metadata={
+                "correlation_id": get_contextvars().get("correlation_id", "MISSING"),
                 "prompt_name": prompt.name,
                 "prompt_label": prompt.label,
                 "prompt_version": prompt.version,
