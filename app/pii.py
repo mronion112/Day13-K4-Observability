@@ -5,7 +5,7 @@ import re
 
 PII_PATTERNS: dict[str, str] = {
     "email": r"[\w\.-]+@[\w\.-]+\.\w+",
-    "phone_vn": r"(?:\+84|0)[ \.-]?\d{3}[ \.-]?\d{3}[ \.-]?\d{3,4}",
+    "phone_vn": r"(?:\+84|0)[\s.-]?[1-9]\d[\s.-]?\d{3}[\s.-]?\d{3,4}",
     "cccd": r"\b\d{12}\b",
     "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",
     # Thêm patterns mới:
