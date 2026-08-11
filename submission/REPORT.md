@@ -36,6 +36,7 @@
 - Evidence dashboard: [dashboard-runtime.png](evidence/dashboard-runtime.png)
 - SLO đã chọn và lý do: P95 ≤ 3000 ms (99.5%), error ≤ 2% (99%), daily cost ≤ 2.5 USD, quality ≥ 0.75; các ngưỡng bảo vệ latency, reliability, budget và answer utility.
 - Alert rules và runbook: ba symptom-based alerts trong `config/alert_rules.yaml`; quy trình Metrics → Traces → Logs và mitigation trong `docs/alerts.md`.
+- Blueprint và câu hỏi tự kiểm tra: [blueprint](../docs/blueprint-template.md), [8 câu trả lời](../docs/mock-debug-qa.md).
 
 ## 6. Điều tra challenge
 
