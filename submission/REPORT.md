@@ -51,13 +51,20 @@
 
 ## 6. Điều tra challenge
 
-- Challenge ID:
+- Challenge ID: day13-k4-observability-v1
 - Triệu chứng từ metrics:
-- Trace ID liên quan:
-- Log line/correlation ID liên quan:
-- Root cause:
-- Fix action:
-- Preventive measure:
+  | Chỉ số | Baseline | Incident |
+  |---|---|---|
+  | P50 | ~150ms | **2659ms** |
+  | P95 | ~160ms | **3957ms** 🔴 |
+  | P99 | ~160ms | **3957ms** 🔴 |
+  | Error rate | 0% | 0% |
+  → Dashboard latency panel báo đỏ, P95 vượt threshold 3000ms
+- Trace ID liên quan: `req-56d336d5`, `req-26103994`
+- Log line/correlation ID liên quan: `req-56d336d5` → log ghi nhận latency ~2650ms, span retrieve chiếm 2.5s
+- Root cause: Incident `rag_slow` đang bật → hàm `retrieve()` trong `mock_rag.py` có `time.sleep(2.5)` → mỗi request bị delay 2.5s ở tầng RAG. Trace waterfall xác nhận: span `retrieve` = 2.5s (91% thời gian), span `generate` = 0.15s (5%) → bottleneck nằm ở RAG, không phải LLM
+- Fix action: Tắt incident `python scripts/inject_incident.py --scenario rag_slow --disable`
+- Preventive measure: Thêm timeout cho RAG call (vd: 1s), circuit breaker nếu RAG liên tục chậm, alert `high_latency_p95` tự động kích hoạt khi P95 vượt 3000ms
 
 ## 7. Đóng góp cá nhân
 
