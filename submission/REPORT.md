@@ -3,7 +3,7 @@
 ## 1. Thông tin nhóm
 
 - Tên nhóm: Quang Dao (bài làm cá nhân)
-- Repository URL: https://github.com/mronion112/Day13-K4-Observability
+- Repository URL: https://github.com/mronion112/Day13-K4-Observability/tree/quangdao-observability
 - Commit SHA cuối: xem `HEAD` của nhánh nộp; commit triển khai và evidence: `8817e87`
 - Thành viên và vai trò: Quang Dao — triển khai và nghiệm thu toàn bộ lab
 
