@@ -9,15 +9,16 @@
 
 ## 2. Kết quả kỹ thuật
 
-- Điểm `validate_logs.py`:
+- Điểm `validate_logs.py` baseline (CP0): 30/100
+- Điểm `validate_logs.py` sau CP1: 100/100
 - Tổng số traces:
-- Số PII leak còn lại:
+- Số PII leak còn lại: 0
 - Link/đường dẫn dashboard:
 
 ## 3. Logging và tracing
 
-- Evidence correlation ID:
-- Evidence PII redaction:
+- Evidence correlation ID: Mỗi request có `correlation_id` format `req-<8hex>`, xuất hiện trong log và response header `x-request-id`
+- Evidence PII redaction: 0 PII leak, email/SĐT/CCCD được thay bằng `[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, `[REDACTED_CCCD]`, `[REDACTED_CREDIT_CARD]`
 - Evidence trace waterfall:
 - Giải thích một span đáng chú ý:
 
