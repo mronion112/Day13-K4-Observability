@@ -1,0 +1,4 @@
+{"event":"Login failed for student@vinuni.edu.vn","expected_secrets":["student@vinuni.edu.vn"]}
+{"event":"Support callback requested at 090 123 4567","expected_secrets":["090 123 4567"]}
+{"event":"Payment rejected for card 4111-1111-1111-1234","expected_secrets":["4111-1111-1111-1234"]}
+{"event":"payload={\"email\":\"admin+lab@example.com\",\"phone\":\"+84 90 765 4321\",\"card\":\"5555 5555 5555 4444\"}","expected_secrets":["admin+lab@example.com","+84 90 765 4321","5555 5555 5555 4444"]}

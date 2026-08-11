@@ -1,0 +1,29 @@
+Logging and PII evidence
+
+Validator result:
+- Estimated Score: 100/100
+- Missing required fields: 0
+- Missing enrichment: 0
+- Potential PII leaks: 0
+
+Correlation ID propagation sample:
+- request_received correlation_id: req-bc2e6668
+- response_sent correlation_id: req-bc2e6668
+
+Enriched metadata sample:
+- user_id_hash: cb22af258a5e
+- session_id: k4-challenge-s02
+- feature: monitoring
+- model: mock-llm-1.0
+- env: dev
+
+Representative sanitized log fields:
+- event: request_received
+- correlation_id: req-bc2e6668
+- user_id_hash: cb22af258a5e
+- session_id: k4-challenge-s02
+- feature: monitoring
+
+PII check:
+- validate_logs.py reported 0 potential PII leaks.
+- Logs use user_id_hash instead of raw user_id.

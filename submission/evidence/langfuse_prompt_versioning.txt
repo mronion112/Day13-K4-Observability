@@ -1,0 +1,42 @@
+Langfuse prompt versioning evidence
+
+Project:
+https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc
+
+Prompt:
+day13-chat
+
+Prompt versions and labels:
+- baseline -> version 1
+- candidate -> version 2
+- production switched to version 2 during rollback test
+- production rolled back to version 1
+
+Trace evidence:
+- baseline trace:
+  https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/83cd9c5e58e04fc3c6bf15e203fe6b31
+  session_id: cp2-prompt-baseline-1786439178
+  prompt_label: baseline
+  prompt_version: 1
+  prompt_source: langfuse
+
+- candidate trace:
+  https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/ac4dd7096f2985d732464db452de9546
+  session_id: cp2-prompt-candidate-1786439184
+  prompt_label: candidate
+  prompt_version: 2
+  prompt_source: langfuse
+
+- production switched to version 2:
+  https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/db8f481f27ea036b4822c9c9c4620243
+  session_id: cp2-production-v2-1786439242
+  prompt_label: production
+  prompt_version: 2
+  prompt_source: langfuse
+
+- production rollback to version 1:
+  https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/4552b148cbaabfa9097a8021c9c5e0f0
+  session_id: cp2-production-rollback-1786439246
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse

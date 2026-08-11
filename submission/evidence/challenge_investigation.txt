@@ -1,0 +1,70 @@
+Challenge investigation evidence
+
+Challenge:
+- challenge_id: day13-k4-observability-v1
+- incident: rag_slow
+- affected_feature: monitoring
+- challenge latency threshold: 2000 ms
+
+Metric symptom from rendered dashboard:
+- latency p50: 2653.0 ms
+- latency p95: 3665.0 ms
+- latency p99: 3665.0 ms
+- latency panel status: FAIL
+- error rate: 0.0%
+- traffic: 5 requests
+
+Alert mapping:
+- high_latency_p95 triggers because latency_p95_ms > 2000 for the challenge window.
+- Error, cost, token, and quality panels did not show the primary symptom.
+
+Top slow log records from data/logs.jsonl:
+- correlation_id: req-f45226fe | feature: monitoring | latency_ms: 3665 | quality_score: 0.8 | tokens_in: 35 | tokens_out: 86
+- correlation_id: req-56d36767 | feature: monitoring | latency_ms: 2654 | quality_score: 0.8 | tokens_in: 35 | tokens_out: 111
+- correlation_id: req-4cbff256 | feature: monitoring | latency_ms: 2653 | quality_score: 0.8 | tokens_in: 35 | tokens_out: 92
+- correlation_id: req-a6f7613f | feature: monitoring | latency_ms: 2653 | quality_score: 0.9 | tokens_in: 36 | tokens_out: 140
+- correlation_id: req-6fbc12f0 | feature: monitoring | latency_ms: 2652 | quality_score: 0.9 | tokens_in: 34 | tokens_out: 161
+
+Langfuse challenge traces:
+- https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/6322ccc6f1dedf4fac677d25632ef815
+  session_id: k4-challenge-s01
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse
+
+- https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/af9cbc145cb66f928919161a4287c4d2
+  session_id: k4-challenge-s04
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse
+
+- https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/fd003c7d17a0c777ff563b7a92f3de03
+  session_id: k4-challenge-s05
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse
+
+- https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/3070430784c8bee092f4ce8a5b74d187
+  session_id: k4-challenge-s03
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse
+
+- https://cloud.langfuse.com/project/cmsoeweqa0029ad0ik52ahukc/traces/6978c4aa5fcd213d7d155186f8885d9b
+  session_id: k4-challenge-s02
+  prompt_label: production
+  prompt_version: 1
+  prompt_source: langfuse
+
+Root cause:
+- The official challenge enabled rag_slow.
+- app/mock_rag.py adds a 2.5 second delay when STATE["rag_slow"] is true.
+- The affected feature is monitoring, so challenge queries consistently hit the delayed RAG path.
+
+Fix action:
+- Disable the incident with: python scripts/inject_incident.py --disable
+- For a real service, investigate and optimize the retrieval/vector-store path before re-enabling traffic.
+
+Preventive measure:
+- Keep the high_latency_p95 alert at the challenge threshold of 2000 ms.
+- Use the dashboard latency panel first, then inspect Langfuse traces and match slow requests to logs by correlation_id.

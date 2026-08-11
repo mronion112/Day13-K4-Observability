@@ -1,0 +1,25 @@
+alerts:
+  - name: high_latency_p95
+    severity: warning
+    condition: latency_p95_ms > 2000 for 5m
+    type: symptom-based
+    owner: Team AK47 / SRE & Alerts Engineer
+    runbook: docs/alerts.md#alert-high-latency-p95
+  - name: high_error_rate
+    severity: critical
+    condition: error_rate_pct > 2 for 5m
+    type: symptom-based
+    owner: Team AK47 / SRE & Alerts Engineer
+    runbook: docs/alerts.md#alert-high-error-rate
+  - name: quality_score_drop
+    severity: warning
+    condition: quality_score_avg < 0.75 for 10m
+    type: symptom-based
+    owner: Team AK47 / SRE & Alerts Engineer
+    runbook: docs/alerts.md#alert-quality-score-drop
+  - name: daily_cost_budget_breach
+    severity: warning
+    condition: daily_cost_usd > 2.5 for 1d
+    type: symptom-based
+    owner: Team AK47 / SRE & Alerts Engineer
+    runbook: docs/alerts.md#alert-daily-cost-budget-breach
