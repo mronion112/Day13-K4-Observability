@@ -1,187 +1,400 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 13 AI Observability Dashboard</title>
+<title>Day 13 — AI Observability Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.header h1 { font-size: 22px; color: #38bdf8; }
-.header .meta { font-size: 13px; color: #94a3b8; }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.panel { background: #1e293b; border-radius: 10px; padding: 16px; border: 1px solid #334155; }
-.panel.full { grid-column: span 2; }
-.panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
-.panel .value { font-size: 28px; font-weight: 700; }
-.panel .unit { font-size: 13px; color: #64748b; }
-.panel canvas { max-height: 180px; }
-.threshold { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 4px; display: inline-block; }
-.threshold.ok { background: #064e3b; color: #34d399; }
-.threshold.warn { background: #78350f; color: #fbbf24; }
-.threshold.bad { background: #7f1d1d; color: #f87171; }
-.error-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: #94a3b8; }
-.refresh { font-size: 11px; color: #475569; text-align: right; margin-top: 10px; }
-.loading { text-align: center; color: #64748b; padding: 40px; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #0a0e17;
+  --card: #111827;
+  --border: #1e293b;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --green: #10b981;
+  --green-bg: #064e3b;
+  --yellow: #f59e0b;
+  --yellow-bg: #78350f;
+  --red: #ef4444;
+  --red-bg: #7f1d1d;
+  --blue: #3b82f6;
+  --cyan: #06b6d4;
+  --purple: #8b5cf6;
+  --pink: #ec4899;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  padding: 20px 24px;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(59,130,246,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(139,92,246,0.06) 0%, transparent 50%);
+}
+
+/* === TOP BAR === */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+.topbar-left { display:flex; align-items:center; gap:14px; }
+.topbar-left h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.topbar-left .badge { font-size: 11px; background: rgba(59,130,246,0.2); color: var(--blue); padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+.topbar-center { display:flex; gap:20px; font-size:12px; color:var(--muted); }
+.topbar-center span { display:flex; align-items:center; gap:6px; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+
+/* Live indicator */
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+}
+.live-text { font-size:11px; font-weight:600; color:var(--green); letter-spacing:0.5px; text-transform:uppercase; }
+
+/* Status circle */
+.status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.status-dot.green { background:var(--green); }
+.status-dot.yellow { background:var(--yellow); }
+.status-dot.red { background:var(--red); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+#clock { font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--cyan); font-weight:500; }
+
+/* === GRID === */
+.grid { display:grid; grid-template-columns: repeat(3,1fr); gap:14px; }
+
+/* === CARD === */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  position:relative;
+  overflow:hidden;
+  transition: border-color 0.3s;
+}
+.card:hover { border-color: #334155; }
+.card.warn { border-color: var(--yellow); box-shadow: 0 0 20px rgba(245,158,11,0.1); }
+.card.bad { border-color: var(--red); box-shadow: 0 0 20px rgba(239,68,68,0.12); }
+.card.full { grid-column: span 2; }
+
+.card-header {
+  display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;
+}
+.card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; }
+.card-badge {
+  font-size:10px; font-weight:600; padding:3px 8px; border-radius:4px; letter-spacing:0.3px;
+}
+.card-badge.ok { background:var(--green-bg); color:var(--green); }
+.card-badge.warn { background:var(--yellow-bg); color:var(--yellow); }
+.card-badge.bad { background:var(--red-bg); color:var(--red); }
+
+/* Big number */
+.big-num { font-size: 34px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
+.big-num .unit { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.big-num.safe { color: var(--green); }
+.big-num.warn { color: var(--yellow); }
+.big-num.danger { color: var(--red); }
+
+.sub-row { display:flex; gap:16px; margin-top:8px; font-size:12px; color:var(--muted); }
+.sub-row .label { color:var(--muted); }
+.sub-row .val { color:var(--text); font-weight:600; font-family:'JetBrains Mono',monospace; }
+
+/* Sparkline container */
+.spark { margin-top:12px; height:60px; }
+
+/* SLO bar */
+.slo-bar { margin-top:10px; }
+.slo-label { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px; }
+.slo-track { height:4px; background:#1e293b; border-radius:2px; overflow:hidden; }
+.slo-fill { height:100%; border-radius:2px; transition: width 0.5s ease; }
+.slo-fill.green { background:var(--green); }
+.slo-fill.yellow { background:var(--yellow); }
+.slo-fill.red { background:var(--red); }
+
+/* Error list */
+.err-item { display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid #1e293b; }
+.err-item:last-child { border-bottom:none; }
+.err-item .err-type { color:var(--red); font-weight:500; }
+.err-item .err-count { font-family:'JetBrains Mono',monospace; color:var(--muted); }
+
+/* Gauge */
+.gauge-wrap { display:flex; align-items:center; gap:16px; margin-top:8px; }
+.gauge-ring { position:relative; width:70px; height:70px; }
+.gauge-ring svg { transform:rotate(-90deg); }
+.gauge-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+canvas { max-height:100px; }
+
+/* Responsive */
+@media(max-width:1100px) { .grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:700px) { .grid { grid-template-columns: 1fr; } .card.full { grid-column: span 1; } }
+
+/* Animated number transition */
+.num-transition { transition: all 0.4s ease; }
 </style>
 </head>
 <body>
-<div class="header">
-  <div>
-    <h1>Day 13 — AI Observability Dashboard</h1>
-    <div class="meta">Time range: 60 min | Refresh: 30s | Source: /metrics + data/logs.jsonl</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="live-dot"></div>
+    <h1>AI Observability</h1>
+    <span class="badge">K4 LAB</span>
   </div>
-  <div class="meta" id="clock">--</div>
+  <div class="topbar-center">
+    <span>🕐 Time Range: 60 min</span>
+    <span>🔄 Refresh: 5s</span>
+    <span>📊 Panels: 6</span>
+  </div>
+  <div class="topbar-right">
+    <span class="live-text">● LIVE</span>
+    <span id="clock">--</span>
+  </div>
 </div>
 
+<!-- GRID -->
 <div class="grid" id="grid">
-  <div class="loading">Loading metrics...</div>
+  <div style="grid-column:span 3;text-align:center;padding:60px;color:var(--muted);">
+    <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+    Loading metrics from <code style="color:var(--blue);">/metrics</code>...
+  </div>
 </div>
-<div class="refresh">Auto-refresh every 30s</div>
 
 <script>
-const METRICS_URL = '/metrics';
+const URL = '/metrics';
 
-function renderPanels(data) {
+const THRESHOLDS = {
+  latency_p95: { limit: 3000, unit: 'ms', operator: 'lte' },
+  error_rate: { limit: 2, unit: '%', operator: 'lte' },
+  cost_total: { limit: 2.5, unit: 'USD', operator: 'lte' },
+  tokens_total: { limit: 50000, unit: '', operator: 'lte' },
+  quality_avg: { limit: 0.75, unit: '', operator: 'gte' },
+  traffic_rate: { limit: 1, unit: 'rpm', operator: 'gte' },
+};
+
+function statusClass(value, limit, operator) {
+  if (operator === 'lte') {
+    if (value <= limit) return 'ok';
+    if (value <= limit * 1.3) return 'warn';
+    return 'bad';
+  } else {
+    if (value >= limit) return 'ok';
+    if (value >= limit * 0.7) return 'warn';
+    return 'bad';
+  }
+}
+
+function gaugeHTML(value, max, color) {
+  const pct = Math.min((value / max) * 100, 100);
+  const circumference = 2 * Math.PI * 28;
+  const offset = circumference - (pct / 100) * circumference;
+  return `
+    <div class="gauge-ring">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="28" fill="none" stroke="#1e293b" stroke-width="5"/>
+        <circle cx="35" cy="35" r="28" fill="none" stroke="${color}" stroke-width="5"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"
+          style="transition:stroke-dashoffset 0.6s ease;"/>
+      </svg>
+      <div class="gauge-center" style="color:${color}">${value.toFixed(1)}</div>
+    </div>`;
+}
+
+function sloBarHTML(used, limit, operator) {
+  const pct = Math.min((used / limit) * 100, 100);
+  const cls = statusClass(used, limit, operator);
+  const color = cls === 'ok' ? 'green' : cls === 'warn' ? 'yellow' : 'red';
+  return `
+    <div class="slo-bar">
+      <div class="slo-label"><span>Budget used</span><span>${pct.toFixed(1)}%</span></div>
+      <div class="slo-track"><div class="slo-fill ${color}" style="width:${pct}%"></div></div>
+    </div>`;
+}
+
+function render(data) {
+  const p50 = data.latency_p50;
   const p95 = data.latency_p95;
-  const p95Limit = 3000;
-  const p95Class = p95 <= p95Limit ? 'ok' : p95 <= p95Limit * 1.2 ? 'warn' : 'bad';
-
+  const p99 = data.latency_p99;
+  const traffic = data.traffic;
   const errorRate = data.error_rate_pct;
-  const errorLimit = 2;
-  const errorClass = errorRate <= errorLimit ? 'ok' : errorRate <= 5 ? 'warn' : 'bad';
-
   const totalCost = data.total_cost_usd;
-  const costLimit = 2.5;
-  const costClass = totalCost <= costLimit ? 'ok' : totalCost <= costLimit * 2 ? 'warn' : 'bad';
-
-  const tokensTotal = data.tokens_in_total + data.tokens_out_total;
-  const tokenLimit = 50000;
-  const tokenClass = tokensTotal <= tokenLimit ? 'ok' : 'warn';
-
+  const avgCost = data.avg_cost_usd;
+  const tokensIn = data.tokens_in_total;
+  const tokensOut = data.tokens_out_total;
   const quality = data.quality_avg;
-  const qualityLimit = 0.75;
-  const qualityClass = quality >= qualityLimit ? 'ok' : quality >= 0.6 ? 'warn' : 'bad';
+  const errors = data.error_breakdown || {};
+  const trafficRate = traffic > 0 ? (traffic / 60).toFixed(1) : 0;
 
-  let errorsHtml = '';
-  if (data.error_breakdown && Object.keys(data.error_breakdown).length > 0) {
-    for (const [type, count] of Object.entries(data.error_breakdown)) {
-      errorsHtml += `<div class="error-row"><span>${type}</span><span>${count}</span></div>`;
+  const p95Cls = statusClass(p95, 3000, 'lte');
+  const errCls = statusClass(errorRate, 2, 'lte');
+  const costCls = statusClass(totalCost, 2.5, 'lte');
+  const tokCls = statusClass(tokensIn + tokensOut, 50000, 'lte');
+  const qualCls = statusClass(quality, 0.75, 'gte');
+  const trafCls = statusClass(parseFloat(trafficRate), 1, 'gte');
+
+  const alertCount = [p95Cls, errCls, costCls, qualCls, trafCls].filter(c => c === 'bad').length;
+  const statusEmoji = alertCount > 0 ? '🔴' : '🟢';
+  const statusText = alertCount > 0 ? `${alertCount} alert${alertCount>1?'s':''}` : 'All systems healthy';
+
+  let errorHTML = '';
+  const errKeys = Object.keys(errors);
+  if (errKeys.length > 0) {
+    for (const [t, c] of Object.entries(errors)) {
+      errorHTML += `<div class="err-item"><span class="err-type">${t}</span><span class="err-count">${c}</span></div>`;
     }
   } else {
-    errorsHtml = '<div class="error-row"><span>No errors</span><span>—</span></div>';
+    errorHTML = '<div class="err-item"><span>No errors</span><span class="err-count">✓</span></div>';
   }
 
   document.getElementById('grid').innerHTML = `
-    <div class="panel">
-      <h3>1. Latency (ms)</h3>
-      <div class="value">P50: ${data.latency_p50} <span class="unit">ms</span></div>
-      <div style="font-size:14px;color:#94a3b8;">P95: ${p95} · P99: ${data.latency_p99}</div>
-      <span class="threshold ${p95Class}">P95 ≤ ${p95Limit}ms</span>
-      <canvas id="latencyChart" style="margin-top:8px;"></canvas>
+    <!-- Latency -->
+    <div class="card ${p95Cls === 'bad' ? 'bad' : p95Cls === 'warn' ? 'warn' : ''}">
+      <div class="card-header">
+        <span class="card-title">⚡ Latency</span>
+        <span class="card-badge ${p95Cls}">P95 ≤ 3000ms</span>
+      </div>
+      <div>
+        <span class="big-num ${p95Cls === 'bad' ? 'danger' : p95Cls === 'warn' ? 'warn' : 'safe'}">${p95}<span class="unit">ms</span></span>
+        <span style="font-size:11px;color:var(--muted);margin-left:6px;">P95</span>
+      </div>
+      <div class="sub-row">
+        <span><span class="label">P50</span> <span class="val">${p50}ms</span></span>
+        <span><span class="label">P99</span> <span class="val">${p99}ms</span></span>
+        <span><span class="label">P95 SLO</span> <span class="val">99.5%</span></span>
+      </div>
+      <div class="spark"><canvas id="latChart"></canvas></div>
     </div>
 
-    <div class="panel">
-      <h3>2. Traffic</h3>
-      <div class="value">${data.traffic} <span class="unit">requests</span></div>
-      <div style="font-size:14px;color:#94a3b8;">~${(data.traffic/60).toFixed(2)} req/min</div>
-      <span class="threshold ${data.traffic > 0 ? 'ok' : 'bad'}">≥ 1 req/min</span>
+    <!-- Traffic -->
+    <div class="card ${trafCls === 'bad' ? 'bad' : ''}">
+      <div class="card-header">
+        <span class="card-title">📈 Traffic</span>
+        <span class="card-badge ${trafCls}">≥ 1 req/min</span>
+      </div>
+      <div>
+        <span class="big-num safe">${traffic}<span class="unit">req</span></span>
+      </div>
+      <div class="sub-row">
+        <span><span class="label">Rate</span> <span class="val">${trafficRate} rpm</span></span>
+        <span><span class="label">Window</span> <span class="val">60 min</span></span>
+      </div>
     </div>
 
-    <div class="panel">
-      <h3>3. Error Rate</h3>
-      <div class="value">${errorRate} <span class="unit">%</span></div>
-      <span class="threshold ${errorClass}">≤ ${errorLimit}%</span>
-      <div style="margin-top:10px;">${errorsHtml}</div>
+    <!-- Error Rate -->
+    <div class="card ${errCls === 'bad' ? 'bad' : errCls === 'warn' ? 'warn' : ''}">
+      <div class="card-header">
+        <span class="card-title">🚨 Error Rate</span>
+        <span class="card-badge ${errCls}">≤ 2%</span>
+      </div>
+      <div>
+        <span class="big-num ${errCls === 'bad' ? 'danger' : errCls === 'warn' ? 'warn' : 'safe'}">${errorRate}<span class="unit">%</span></span>
+      </div>
+      <div style="margin-top:10px;">${errorHTML}</div>
+      ${sloBarHTML(errorRate, 2, 'lte')}
     </div>
 
-    <div class="panel">
-      <h3>4. Cost</h3>
-      <div class="value">$${totalCost.toFixed(4)} <span class="unit">USD</span></div>
-      <div style="font-size:14px;color:#94a3b8;">Avg: $${data.avg_cost_usd.toFixed(4)}/req</div>
-      <span class="threshold ${costClass}">Total ≤ $${costLimit}</span>
+    <!-- Cost -->
+    <div class="card ${costCls === 'bad' ? 'bad' : costCls === 'warn' ? 'warn' : ''}">
+      <div class="card-header">
+        <span class="card-title">💰 Cost</span>
+        <span class="card-badge ${costCls}">≤ $2.50</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1;">
+          <span class="big-num ${costCls === 'bad' ? 'danger' : costCls === 'warn' ? 'warn' : 'safe'}">$${totalCost.toFixed(4)}<span class="unit">total</span></span>
+          <div class="sub-row" style="margin-top:4px;">
+            <span><span class="label">Avg/req</span> <span class="val">$${avgCost.toFixed(4)}</span></span>
+          </div>
+        </div>
+        ${gaugeHTML(totalCost, 3.0, costCls === 'ok' ? '#10b981' : costCls === 'warn' ? '#f59e0b' : '#ef4444')}
+      </div>
+      ${sloBarHTML(totalCost, 2.5, 'lte')}
     </div>
 
-    <div class="panel">
-      <h3>5. Tokens</h3>
-      <div class="value">${tokensTotal} <span class="unit">tokens</span></div>
-      <div style="font-size:14px;color:#94a3b8;">In: ${data.tokens_in_total} · Out: ${data.tokens_out_total}</div>
-      <span class="threshold ${tokenClass}">Total ≤ ${tokenLimit}</span>
+    <!-- Tokens -->
+    <div class="card ${tokCls === 'bad' ? 'bad' : ''}">
+      <div class="card-header">
+        <span class="card-title">🔤 Tokens</span>
+        <span class="card-badge ${tokCls}">≤ 50000</span>
+      </div>
+      <div>
+        <span class="big-num safe">${tokensIn + tokensOut}<span class="unit">total</span></span>
+      </div>
+      <div class="sub-row">
+        <span><span class="label">📥 Input</span> <span class="val">${tokensIn}</span></span>
+        <span><span class="label">📤 Output</span> <span class="val">${tokensOut}</span></span>
+      </div>
+      <div class="spark" style="margin-top:10px;"><canvas id="tokChart"></canvas></div>
+      ${sloBarHTML(tokensIn + tokensOut, 50000, 'lte')}
     </div>
 
-    <div class="panel">
-      <h3>6. Quality</h3>
-      <div class="value">${quality.toFixed(2)} <span class="unit">/ 1.0</span></div>
-      <span class="threshold ${qualityClass}">Avg ≥ ${qualityLimit}</span>
-      <canvas id="qualityChart" style="margin-top:8px;"></canvas>
+    <!-- Quality -->
+    <div class="card ${qualCls === 'bad' ? 'bad' : qualCls === 'warn' ? 'warn' : ''}">
+      <div class="card-header">
+        <span class="card-title">⭐ Quality</span>
+        <span class="card-badge ${qualCls}">≥ 0.75</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1;">
+          <span class="big-num ${qualCls === 'bad' ? 'danger' : qualCls === 'warn' ? 'warn' : 'safe'}">${quality.toFixed(2)}<span class="unit">/ 1.0</span></span>
+        </div>
+        ${gaugeHTML(quality, 1.0, qualCls === 'ok' ? '#10b981' : qualCls === 'warn' ? '#f59e0b' : '#ef4444')}
+      </div>
+      ${sloBarHTML(1.0 - quality, 0.25, 'lte')}
     </div>
   `;
 
-  // Small latency bar chart
-  setTimeout(() => {
-    const lctx = document.getElementById('latencyChart');
-    if (lctx) {
-      new Chart(lctx, {
-        type: 'bar',
-        data: {
-          labels: ['P50', 'P95', 'P99'],
-          datasets: [{
-            label: 'ms',
-            data: [data.latency_p50, data.latency_p95, data.latency_p99],
-            backgroundColor: ['#22c55e', data.latency_p95 <= 3000 ? '#22c55e' : '#f59e0b', '#3b82f6'],
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { max: Math.max(data.latency_p99 * 1.3, 3000), ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-            x: { ticks: { color: '#94a3b8' } }
-          }
-        }
-      });
-    }
-    const qctx = document.getElementById('qualityChart');
-    if (qctx) {
-      new Chart(qctx, {
-        type: 'bar',
-        data: {
-          labels: ['Quality'],
-          datasets: [{
-            data: [quality],
-            backgroundColor: [quality >= 0.75 ? '#22c55e' : '#f59e0b'],
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { min: 0, max: 1, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-            x: { ticks: { color: '#94a3b8' } }
-          }
-        }
-      });
-    }
-  }, 100);
+  // Charts
+  requestAnimationFrame(() => {
+    const latCtx = document.getElementById('latChart');
+    if (latCtx) new Chart(latCtx, {
+      type: 'bar', data: { labels: ['P50','P95','P99'], datasets: [{ data: [p50,p95,p99],
+        backgroundColor: ['#22c55e', p95<=3000?'#22c55e':'#ef4444', '#3b82f6'],
+        borderRadius: 4, borderSkipped: false }] },
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{ y:{ max:Math.max(p99*1.2, 3000), ticks:{color:'#64748b'}, grid:{color:'#1e293b'}},
+          x:{ ticks:{color:'#64748b'} } } } });
+
+    const tokCtx = document.getElementById('tokChart');
+    if (tokCtx) new Chart(tokCtx, {
+      type: 'bar', data: { labels: ['In','Out'], datasets: [{ data: [tokensIn,tokensOut],
+        backgroundColor: ['#3b82f6','#8b5cf6'], borderRadius: 4, borderSkipped: false }] },
+      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        plugins:{legend:{display:false}},
+        scales:{ x:{ ticks:{color:'#64748b'}, grid:{color:'#1e293b'}},
+          y:{ ticks:{color:'#64748b'} } } } });
+  });
 }
 
 function updateClock() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 }
 
 function fetchMetrics() {
-  fetch(METRICS_URL)
-    .then(r => r.json())
-    .then(renderPanels)
-    .catch(e => { document.getElementById('grid').innerHTML = '<div class="loading">Error connecting to API. Make sure uvicorn is running on port 8000.</div>'; });
+  fetch(URL).then(r => r.json()).then(render).catch(() => {});
 }
 
 updateClock();
 setInterval(updateClock, 1000);
 fetchMetrics();
-setInterval(fetchMetrics, 30000);
+setInterval(fetchMetrics, 5000);
 </script>
 </body>
 </html>
