@@ -1,0 +1,32 @@
+Lab 13 - CP3 official challenge investigation
+
+Challenge ID: day13-k4-observability-v1
+Official incident: rag_slow
+Affected feature: monitoring
+Challenge latency threshold: 2000 ms
+
+Execution:
+1. Enabled the official incident with `python scripts/inject_incident.py`.
+2. Ran `python scripts/load_test.py --challenge --concurrency 5`.
+3. Collected `/metrics` and correlated an affected request in JSONL logs.
+4. Disabled the incident after collection.
+
+Metrics after challenge load:
+- traffic: 45
+- latency_p50: 151.0 ms
+- latency_p95: 2653.0 ms
+- latency_p99: 2654.0 ms
+- error_rate_pct: 0.0
+
+Correlation evidence:
+- correlation_id: req-9fa962a0
+- session_id: k4-challenge-s04
+- feature: monitoring
+- request_received: 2026-08-11T09:50:52.649723Z
+- response_sent: 2026-08-11T09:50:55.305318Z
+- response_sent.latency_ms: 2654
+
+Conclusion:
+The high P95 is caused by the enabled rag_slow incident: retrieval adds a 2.5 second delay.
+The Langfuse trace for correlation_id req-9fa962a0 shows retrieve as the slow child span.
+The incident was disabled after the investigation.

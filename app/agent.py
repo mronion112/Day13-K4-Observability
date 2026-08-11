@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
+
+from structlog.contextvars import get_contextvars
 
 from . import metrics
 from .mock_llm import FakeLLM
@@ -26,11 +29,23 @@ class LabAgent:
         self.model = model
         self.llm = FakeLLM(model=model)
 
-    @observe(as_type="generation", capture_input=False, capture_output=False)
+    @observe(name="run", as_type="span", capture_input=False, capture_output=False)
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
-        docs = retrieve(message)
         langfuse_client = get_langfuse_client()
+        supports_nested_spans = tracing_enabled() and all(
+            hasattr(langfuse_client, method)
+            for method in ("start_as_current_span", "start_as_current_generation")
+        )
+
+        retrieve_context = (
+            langfuse_client.start_as_current_span(name="retrieve")
+            if supports_nested_spans
+            else nullcontext()
+        )
+        with retrieve_context:
+            docs = retrieve(message)
+
         prompt = resolve_prompt(
             langfuse_client,
             feature=feature,
@@ -38,40 +53,76 @@ class LabAgent:
             message=message,
             enabled=tracing_enabled(),
         )
-        response = self.llm.generate(prompt.text)
-        quality_score = self._heuristic_quality(message, response.text, docs)
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
+        generation_context = (
+            langfuse_client.start_as_current_generation(
+                name="generate",
+                model=self.model,
+                prompt=prompt.managed_prompt,
+            )
+            if supports_nested_spans
+            else nullcontext(None)
+        )
+        with generation_context as generation:
+            response = self.llm.generate(prompt.text)
+            quality_score = self._heuristic_quality(message, response.text, docs)
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            cost_usd = self._estimate_cost(
+                response.usage.input_tokens, response.usage.output_tokens
+            )
+            if generation is not None:
+                generation.update(
+                    output=response.text,
+                    metadata={
+                        "doc_count": len(docs),
+                        "query_preview": summarize_text(message),
+                        "prompt_name": prompt.name,
+                        "prompt_label": prompt.label,
+                        "prompt_version": prompt.version,
+                        "prompt_source": prompt.source,
+                        "prompt_fetch_error": prompt.fetch_error,
+                    },
+                    usage_details={
+                        "prompt_tokens": response.usage.input_tokens,
+                        "completion_tokens": response.usage.output_tokens,
+                    },
+                    cost_details={"total": cost_usd},
+                )
+
+        trace_metadata = {
+            "prompt_name": prompt.name,
+            "prompt_label": prompt.label,
+            "prompt_version": prompt.version,
+            "prompt_source": prompt.source,
+        }
+        correlation_id = get_contextvars().get("correlation_id")
+        if correlation_id:
+            trace_metadata["correlation_id"] = correlation_id
 
         langfuse_client.update_current_trace(
             user_id=hash_user_id(user_id),
             session_id=session_id,
             tags=["lab", feature, self.model],
-            metadata={
-                "prompt_name": prompt.name,
-                "prompt_label": prompt.label,
-                "prompt_version": prompt.version,
-                "prompt_source": prompt.source,
-            },
+            metadata=trace_metadata,
         )
-        langfuse_client.update_current_generation(
-            model=self.model,
-            metadata={
-                "doc_count": len(docs),
-                "query_preview": summarize_text(message),
-                "prompt_name": prompt.name,
-                "prompt_label": prompt.label,
-                "prompt_version": prompt.version,
-                "prompt_source": prompt.source,
-                "prompt_fetch_error": prompt.fetch_error,
-            },
-            usage_details={
-                "prompt_tokens": response.usage.input_tokens,
-                "completion_tokens": response.usage.output_tokens,
-            },
-            cost_details={"total": cost_usd},
-            prompt=prompt.managed_prompt,
-        )
+        if not supports_nested_spans:
+            langfuse_client.update_current_generation(
+                model=self.model,
+                metadata={
+                    "doc_count": len(docs),
+                    "query_preview": summarize_text(message),
+                    "prompt_name": prompt.name,
+                    "prompt_label": prompt.label,
+                    "prompt_version": prompt.version,
+                    "prompt_source": prompt.source,
+                    "prompt_fetch_error": prompt.fetch_error,
+                },
+                usage_details={
+                    "prompt_tokens": response.usage.input_tokens,
+                    "completion_tokens": response.usage.output_tokens,
+                },
+                cost_details={"total": cost_usd},
+                prompt=prompt.managed_prompt,
+            )
 
         metrics.record_request(
             latency_ms=latency_ms,

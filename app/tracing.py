@@ -3,6 +3,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
+# Keep observability failures from blocking the API request indefinitely.
+# This can still be overridden through the .env file.
+os.environ.setdefault("LANGFUSE_TIMEOUT", "2")
+
 try:
     from langfuse import get_client, observe
 
