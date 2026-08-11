@@ -4,7 +4,7 @@
 
 - Tên nhóm: Quang Dao (bài làm cá nhân)
 - Repository URL: https://github.com/mronion112/Day13-K4-Observability
-- Commit SHA cuối: cập nhật sau commit nghiệm thu
+- Commit SHA cuối: xem `HEAD` của nhánh nộp; commit triển khai và evidence: `8817e87`
 - Thành viên và vai trò: Quang Dao — triển khai và nghiệm thu toàn bộ lab
 
 ## 2. Kết quả kỹ thuật
@@ -53,4 +53,4 @@ Với mỗi thành viên, ghi rõ nhiệm vụ và link commit/PR tương ứng.
 
 | Thành viên | Phần việc | Commit/PR | Điều đã học |
 |---|---|---|---|
-| Quang Dao | Logging/PII, tracing/prompt, dashboard/SLO/alerts, challenge và report | Commit nghiệm thu cuối | Hiểu luồng Metrics → Traces → Logs, correlation context và rollback prompt an toàn |
+| Quang Dao | Logging/PII, tracing/prompt, dashboard/SLO/alerts, challenge và report | [`8817e87`](https://github.com/mronion112/Day13-K4-Observability/commit/8817e87) | Hiểu luồng Metrics → Traces → Logs, correlation context và rollback prompt an toàn |
