@@ -31,6 +31,11 @@ python scripts/validate_dashboard.py
 
 Validator kiểm tra cấu trúc contract; nó không thể chứng minh biểu đồ trong ảnh dùng đúng dữ liệu. Evidence runtime vẫn bắt buộc.
 
+Repo này có dashboard runtime tại `http://127.0.0.1:8000/dashboard`. Dashboard đọc trực tiếp
+`data/logs.jsonl`, dùng cửa sổ trượt 60 phút, tự refresh sau 30 giây và hiển thị đủ
+sáu panel cùng threshold trong contract. Endpoint `/dashboard/data` cung cấp các phép tổng
+hợp ở dạng JSON để kiểm tra độc lập.
+
 ## Cách kiểm tra runtime
 
 1. Lưu ảnh baseline và giá trị P95/error/cost hiện tại.

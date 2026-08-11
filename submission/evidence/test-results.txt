@@ -1,0 +1,7 @@
+25 passed in 1.32s
+
+Additional acceptance checks:
+- SCHEMA_OK 91 records (validated with app.schemas.LogRecord)
+- validate_logs.py: 100/100
+- validate_dashboard.py: HỢP LỆ 6/6 panel
+- git diff --check: passed

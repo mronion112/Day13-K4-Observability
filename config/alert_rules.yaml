@@ -1,19 +1,28 @@
 alerts:
-  - name: TODO_alert_1
-    severity: TODO
-    condition: TODO
+  - name: User-facing latency SLO breach
+    severity: critical
+    sli: latency_p95_ms
+    condition: latency_p95_ms > 3000 for 5m
+    duration: 5m
     type: symptom-based
-    owner: TODO
+    user_impact: Chat responses are noticeably slow or time out.
+    owner: AI Platform On-call
     runbook: docs/alerts.md#alert-1
-  - name: TODO_alert_2
-    severity: TODO
-    condition: TODO
+  - name: Elevated request failure rate
+    severity: critical
+    sli: error_rate_pct
+    condition: error_rate_pct > 2 for 5m
+    duration: 5m
     type: symptom-based
-    owner: TODO
+    user_impact: More than 2 percent of chat requests fail.
+    owner: AI Platform On-call
     runbook: docs/alerts.md#alert-2
-  - name: TODO_alert_3
-    severity: TODO
-    condition: TODO
+  - name: Answer quality degradation
+    severity: warning
+    sli: quality_score_avg
+    condition: quality_score_avg < 0.75 for 15m
+    duration: 15m
     type: symptom-based
-    owner: TODO
+    user_impact: Users receive answers below the accepted quality proxy.
+    owner: AI Quality Owner
     runbook: docs/alerts.md#alert-3

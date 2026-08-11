@@ -9,6 +9,10 @@ from .mock_rag import retrieve
 from .pii import hash_user_id, summarize_text
 from .prompt_management import resolve_prompt
 from .tracing import get_langfuse_client, observe, tracing_enabled
+from .logging_config import get_logger
+
+
+log = get_logger()
 
 
 @dataclass
@@ -29,7 +33,7 @@ class LabAgent:
     @observe(as_type="generation", capture_input=False, capture_output=False)
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
-        docs = retrieve(message)
+        docs = self._retrieve(message)
         langfuse_client = get_langfuse_client()
         prompt = resolve_prompt(
             langfuse_client,
@@ -38,7 +42,7 @@ class LabAgent:
             message=message,
             enabled=tracing_enabled(),
         )
-        response = self.llm.generate(prompt.text)
+        response = self._generate(prompt.text)
         quality_score = self._heuristic_quality(message, response.text, docs)
         latency_ms = int((time.perf_counter() - started) * 1000)
         cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
@@ -89,6 +93,44 @@ class LabAgent:
             cost_usd=cost_usd,
             quality_score=quality_score,
         )
+
+    @observe(name="retrieval", as_type="span", capture_input=False, capture_output=False)
+    def _retrieve(self, message: str) -> list[str]:
+        started = time.perf_counter()
+        log.info("tool_started", service="agent", tool_name="retrieval")
+        try:
+            docs = retrieve(message)
+        except Exception as exc:
+            log.error(
+                "tool_failed",
+                service="agent",
+                tool_name="retrieval",
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                error_type=type(exc).__name__,
+                payload={"detail": str(exc)},
+            )
+            raise
+        log.info(
+            "tool_completed",
+            service="agent",
+            tool_name="retrieval",
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            payload={"doc_count": len(docs)},
+        )
+        return docs
+
+    @observe(name="llm_generation", as_type="span", capture_input=False, capture_output=False)
+    def _generate(self, prompt: str):
+        started = time.perf_counter()
+        response = self.llm.generate(prompt)
+        log.info(
+            "model_completed",
+            service="agent",
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            tokens_in=response.usage.input_tokens,
+            tokens_out=response.usage.output_tokens,
+        )
+        return response
 
     def _estimate_cost(self, tokens_in: int, tokens_out: int) -> float:
         input_cost = (tokens_in / 1_000_000) * 3
