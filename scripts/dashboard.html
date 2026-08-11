@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 13 AI Observability Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header h1 { font-size: 22px; color: #38bdf8; }
+.header .meta { font-size: 13px; color: #94a3b8; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.panel { background: #1e293b; border-radius: 10px; padding: 16px; border: 1px solid #334155; }
+.panel.full { grid-column: span 2; }
+.panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
+.panel .value { font-size: 28px; font-weight: 700; }
+.panel .unit { font-size: 13px; color: #64748b; }
+.panel canvas { max-height: 180px; }
+.threshold { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+.threshold.ok { background: #064e3b; color: #34d399; }
+.threshold.warn { background: #78350f; color: #fbbf24; }
+.threshold.bad { background: #7f1d1d; color: #f87171; }
+.error-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: #94a3b8; }
+.refresh { font-size: 11px; color: #475569; text-align: right; margin-top: 10px; }
+.loading { text-align: center; color: #64748b; padding: 40px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>Day 13 — AI Observability Dashboard</h1>
+    <div class="meta">Time range: 60 min | Refresh: 30s | Source: /metrics + data/logs.jsonl</div>
+  </div>
+  <div class="meta" id="clock">--</div>
+</div>
+
+<div class="grid" id="grid">
+  <div class="loading">Loading metrics...</div>
+</div>
+<div class="refresh">Auto-refresh every 30s</div>
+
+<script>
+const METRICS_URL = '/metrics';
+
+function renderPanels(data) {
+  const p95 = data.latency_p95;
+  const p95Limit = 3000;
+  const p95Class = p95 <= p95Limit ? 'ok' : p95 <= p95Limit * 1.2 ? 'warn' : 'bad';
+
+  const errorRate = data.error_rate_pct;
+  const errorLimit = 2;
+  const errorClass = errorRate <= errorLimit ? 'ok' : errorRate <= 5 ? 'warn' : 'bad';
+
+  const totalCost = data.total_cost_usd;
+  const costLimit = 2.5;
+  const costClass = totalCost <= costLimit ? 'ok' : totalCost <= costLimit * 2 ? 'warn' : 'bad';
+
+  const tokensTotal = data.tokens_in_total + data.tokens_out_total;
+  const tokenLimit = 50000;
+  const tokenClass = tokensTotal <= tokenLimit ? 'ok' : 'warn';
+
+  const quality = data.quality_avg;
+  const qualityLimit = 0.75;
+  const qualityClass = quality >= qualityLimit ? 'ok' : quality >= 0.6 ? 'warn' : 'bad';
+
+  let errorsHtml = '';
+  if (data.error_breakdown && Object.keys(data.error_breakdown).length > 0) {
+    for (const [type, count] of Object.entries(data.error_breakdown)) {
+      errorsHtml += `<div class="error-row"><span>${type}</span><span>${count}</span></div>`;
+    }
+  } else {
+    errorsHtml = '<div class="error-row"><span>No errors</span><span>—</span></div>';
+  }
+
+  document.getElementById('grid').innerHTML = `
+    <div class="panel">
+      <h3>1. Latency (ms)</h3>
+      <div class="value">P50: ${data.latency_p50} <span class="unit">ms</span></div>
+      <div style="font-size:14px;color:#94a3b8;">P95: ${p95} · P99: ${data.latency_p99}</div>
+      <span class="threshold ${p95Class}">P95 ≤ ${p95Limit}ms</span>
+      <canvas id="latencyChart" style="margin-top:8px;"></canvas>
+    </div>
+
+    <div class="panel">
+      <h3>2. Traffic</h3>
+      <div class="value">${data.traffic} <span class="unit">requests</span></div>
+      <div style="font-size:14px;color:#94a3b8;">~${(data.traffic/60).toFixed(2)} req/min</div>
+      <span class="threshold ${data.traffic > 0 ? 'ok' : 'bad'}">≥ 1 req/min</span>
+    </div>
+
+    <div class="panel">
+      <h3>3. Error Rate</h3>
+      <div class="value">${errorRate} <span class="unit">%</span></div>
+      <span class="threshold ${errorClass}">≤ ${errorLimit}%</span>
+      <div style="margin-top:10px;">${errorsHtml}</div>
+    </div>
+
+    <div class="panel">
+      <h3>4. Cost</h3>
+      <div class="value">$${totalCost.toFixed(4)} <span class="unit">USD</span></div>
+      <div style="font-size:14px;color:#94a3b8;">Avg: $${data.avg_cost_usd.toFixed(4)}/req</div>
+      <span class="threshold ${costClass}">Total ≤ $${costLimit}</span>
+    </div>
+
+    <div class="panel">
+      <h3>5. Tokens</h3>
+      <div class="value">${tokensTotal} <span class="unit">tokens</span></div>
+      <div style="font-size:14px;color:#94a3b8;">In: ${data.tokens_in_total} · Out: ${data.tokens_out_total}</div>
+      <span class="threshold ${tokenClass}">Total ≤ ${tokenLimit}</span>
+    </div>
+
+    <div class="panel">
+      <h3>6. Quality</h3>
+      <div class="value">${quality.toFixed(2)} <span class="unit">/ 1.0</span></div>
+      <span class="threshold ${qualityClass}">Avg ≥ ${qualityLimit}</span>
+      <canvas id="qualityChart" style="margin-top:8px;"></canvas>
+    </div>
+  `;
+
+  // Small latency bar chart
+  setTimeout(() => {
+    const lctx = document.getElementById('latencyChart');
+    if (lctx) {
+      new Chart(lctx, {
+        type: 'bar',
+        data: {
+          labels: ['P50', 'P95', 'P99'],
+          datasets: [{
+            label: 'ms',
+            data: [data.latency_p50, data.latency_p95, data.latency_p99],
+            backgroundColor: ['#22c55e', data.latency_p95 <= 3000 ? '#22c55e' : '#f59e0b', '#3b82f6'],
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { max: Math.max(data.latency_p99 * 1.3, 3000), ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+            x: { ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+    const qctx = document.getElementById('qualityChart');
+    if (qctx) {
+      new Chart(qctx, {
+        type: 'bar',
+        data: {
+          labels: ['Quality'],
+          datasets: [{
+            data: [quality],
+            backgroundColor: [quality >= 0.75 ? '#22c55e' : '#f59e0b'],
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 1, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+            x: { ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+  }, 100);
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+function fetchMetrics() {
+  fetch(METRICS_URL)
+    .then(r => r.json())
+    .then(renderPanels)
+    .catch(e => { document.getElementById('grid').innerHTML = '<div class="loading">Error connecting to API. Make sure uvicorn is running on port 8000.</div>'; });
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+fetchMetrics();
+setInterval(fetchMetrics, 30000);
+</script>
+</body>
+</html>
